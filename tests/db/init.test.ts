@@ -173,9 +173,70 @@ describe('migration 0002_recurrences', () => {
   });
 });
 
+describe('migration 0003_statements', () => {
+  it('cria uma fatura por conta/mês (UNIQUE)', () => {
+    const cardId = insertCard(db);
+    db.prepare("INSERT INTO statements (account_id, month, due_on) VALUES (?, '2026-10', '2026-10-17')").run(cardId);
+    expect(() =>
+      db.prepare("INSERT INTO statements (account_id, month, due_on) VALUES (?, '2026-10', '2026-10-17')").run(cardId),
+    ).toThrow(/UNIQUE constraint failed/);
+  });
+
+  it('impede duas linhas com o mesmo import_hash na mesma conta (duplicado de importação)', () => {
+    const cardId = insertCard(db);
+    db.prepare(
+      `INSERT INTO transactions (kind, account_id, amount_cents, purchased_on, effective_on, description, import_hash)
+       VALUES ('expense', ?, 4780, '2026-10-05', '2026-10-17', 'IFOOD RESTAURANTE', '2026-10-05|4780|IFOOD RESTAURANTE')`,
+    ).run(cardId);
+
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO transactions (kind, account_id, amount_cents, purchased_on, effective_on, description, import_hash)
+           VALUES ('expense', ?, 4780, '2026-10-05', '2026-10-17', 'IFOOD RESTAURANTE', '2026-10-05|4780|IFOOD RESTAURANTE')`,
+        )
+        .run(cardId),
+    ).toThrow(/UNIQUE constraint failed/);
+  });
+
+  it('permite import_hash NULL em vários lançamentos (índice é parcial)', () => {
+    const cardId = insertCard(db);
+    db.prepare(
+      `INSERT INTO transactions (kind, account_id, amount_cents, purchased_on, effective_on, description)
+       VALUES ('expense', ?, 1000, '2026-10-05', '2026-10-17', 'Lançamento manual 1')`,
+    ).run(cardId);
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO transactions (kind, account_id, amount_cents, purchased_on, effective_on, description)
+           VALUES ('expense', ?, 2000, '2026-10-06', '2026-10-17', 'Lançamento manual 2')`,
+        )
+        .run(cardId),
+    ).not.toThrow();
+  });
+
+  it('mesmo import_hash em contas diferentes não conflita', () => {
+    const card1 = insertCard(db);
+    const card2 = insertCard(db);
+    const sql = `INSERT INTO transactions (kind, account_id, amount_cents, purchased_on, effective_on, description, import_hash)
+       VALUES ('expense', ?, 4780, '2026-10-05', '2026-10-17', 'IFOOD RESTAURANTE', '2026-10-05|4780|IFOOD RESTAURANTE')`;
+    db.prepare(sql).run(card1);
+    expect(() => db.prepare(sql).run(card2)).not.toThrow();
+  });
+});
+
 function insertChecking(db: Database.Database): number {
   const result = db
     .prepare("INSERT INTO accounts (name, kind, opening_balance_cents) VALUES ('Conta corrente', 'checking', 0)")
+    .run();
+  return result.lastInsertRowid as number;
+}
+
+function insertCard(db: Database.Database): number {
+  const result = db
+    .prepare(
+      "INSERT INTO accounts (name, kind, opening_balance_cents, credit_limit_cents, closing_day, due_day) VALUES ('Cartão', 'credit_card', 0, 500000, 10, 17)",
+    )
     .run();
   return result.lastInsertRowid as number;
 }

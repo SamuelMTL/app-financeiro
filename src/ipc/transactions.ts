@@ -1,6 +1,6 @@
 import type Database from '@tauri-apps/plugin-sql';
 import { validateTransaction, type TransactionInput } from '../domain/transactions/validate';
-import { previewInstallments } from '../domain/transactions/installments';
+import { installmentStatementMonth, previewInstallments } from '../domain/transactions/installments';
 import { validateTransfer, type TransferInput } from '../domain/transactions/transfers';
 import {
   validateRefund,
@@ -9,6 +9,7 @@ import {
 } from '../domain/transactions/refunds';
 import type { Transaction, TransactionKind } from '../domain/types';
 import { getDb } from './db';
+import { getOrCreateStatement, resolveExpenseEffective } from './statements';
 
 interface TransactionRow {
   id: number;
@@ -21,6 +22,9 @@ interface TransactionRow {
   effective_on: string;
   description: string;
   notes: string | null;
+  installment_group_id: string | null;
+  installment_no: number | null;
+  installments_total: number | null;
 }
 
 function fromRow(row: TransactionRow): Omit<Transaction, 'tags'> {
@@ -35,6 +39,9 @@ function fromRow(row: TransactionRow): Omit<Transaction, 'tags'> {
     effectiveOn: row.effective_on,
     description: row.description,
     notes: row.notes,
+    installmentGroupId: row.installment_group_id,
+    installmentNo: row.installment_no,
+    installmentsTotal: row.installments_total,
   };
 }
 
@@ -140,20 +147,27 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
   if (errors.length > 0) throw new Error(errors.join(' '));
 
   const db = await getDb();
-  // Fase 1: effective_on = purchased_on. O cálculo de em qual fatura a compra cai
-  // (fechamento do cartão) chega na Fase 3, junto com a criação de `statements`.
+  // Gasto num cartão: effective_on vira o vencimento da fatura do mês certo
+  // (Fase 3, docs/data-model.md). Renda e gasto fora de cartão: effective_on =
+  // purchased_on, como desde a Fase 1.
+  const { statementId, effectiveOn } =
+    input.kind === 'expense'
+      ? await resolveExpenseEffective(input.accountId, input.purchasedOn)
+      : { statementId: null, effectiveOn: input.purchasedOn };
+
   const result = await db.execute(
-    `INSERT INTO transactions (kind, account_id, category_id, amount_cents, purchased_on, effective_on, description, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO transactions (kind, account_id, category_id, amount_cents, purchased_on, effective_on, description, notes, statement_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.kind,
       input.accountId,
       input.categoryId,
       input.amountCents,
       input.purchasedOn,
-      input.purchasedOn,
+      effectiveOn,
       input.description.trim(),
       input.notes,
+      statementId,
     ],
   );
   const id = result.lastInsertId as number;
@@ -166,10 +180,15 @@ export async function updateTransaction(id: number, input: TransactionInput): Pr
   if (errors.length > 0) throw new Error(errors.join(' '));
 
   const db = await getDb();
+  const { statementId, effectiveOn } =
+    input.kind === 'expense'
+      ? await resolveExpenseEffective(input.accountId, input.purchasedOn)
+      : { statementId: null, effectiveOn: input.purchasedOn };
+
   await db.execute(
     `UPDATE transactions
      SET kind = ?, account_id = ?, category_id = ?, amount_cents = ?, purchased_on = ?, effective_on = ?,
-         description = ?, notes = ?, updated_at = datetime('now')
+         description = ?, notes = ?, statement_id = ?, updated_at = datetime('now')
      WHERE id = ?`,
     [
       input.kind,
@@ -177,9 +196,10 @@ export async function updateTransaction(id: number, input: TransactionInput): Pr
       input.categoryId,
       input.amountCents,
       input.purchasedOn,
-      input.purchasedOn,
+      effectiveOn,
       input.description.trim(),
       input.notes,
+      statementId,
       id,
     ],
   );
@@ -243,22 +263,37 @@ export async function createInstallmentPurchase(
   const createdIds: number[] = [];
 
   for (const item of preview) {
+    // Com cartão, cada parcela usa o vencimento real da fatura do mês dela (não
+    // só o dia estimado de `previewInstallments`, que não tem acesso ao banco).
+    let statementId: number | null = null;
+    let effectiveOn = item.effectiveOn;
+    if (input.closingDay !== null) {
+      const month = installmentStatementMonth(input.purchasedOn, item.installmentNo, input.closingDay);
+      const statement = await getOrCreateStatement(input.accountId, month);
+      statementId = statement.id;
+      effectiveOn = statement.dueOn;
+    }
+
     const result = await db.execute(
       `INSERT INTO transactions
          (kind, account_id, category_id, amount_cents, purchased_on, effective_on, description,
-          notes, installment_group_id, installment_no, installments_total)
-       VALUES ('expense', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          notes, installment_group_id, installment_no, installments_total, statement_id)
+       VALUES ('expense', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.accountId,
         input.categoryId,
         item.amountCents,
         input.purchasedOn,
-        item.effectiveOn,
-        `${input.description} (${item.installmentNo}/${input.installmentsTotal})`,
+        effectiveOn,
+        // Descrição fica limpa (sem "(N/M)" no texto) — o nº da parcela já é
+        // coluna própria; embuti-lo no texto quebraria o casamento de grupo na
+        // importação de fatura (Fase 3), que compara description normalizada.
+        input.description,
         input.notes,
         groupId,
         item.installmentNo,
         input.installmentsTotal,
+        statementId,
       ],
     );
     createdIds.push(result.lastInsertId as number);

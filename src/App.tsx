@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Sidebar, type ScreenId } from './ui/Sidebar';
 import { Lancamentos } from './ui/screens/Lancamentos';
 import { CartoesContas } from './ui/screens/CartoesContas';
+import { ImportarFatura } from './ui/screens/ImportarFatura';
 import { PlaceholderScreen } from './ui/screens/PlaceholderScreen';
 import { TransactionFormModal } from './ui/components/TransactionFormModal';
 import type { Account, Category } from './domain/types';
@@ -22,7 +23,7 @@ function Screen({ id }: { id: ScreenId }) {
     case 'cartoes':
       return <CartoesContas />;
     case 'importar':
-      return <PlaceholderScreen title="Importar fatura" phase="Fase 3" />;
+      return <ImportarFatura />;
     case 'planejamento':
       return <PlaceholderScreen title="Planejamento" phase="Fase 5" />;
     case 'analise':

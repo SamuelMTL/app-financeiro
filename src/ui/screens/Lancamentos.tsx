@@ -160,6 +160,11 @@ export function Lancamentos() {
                   <td>
                     {tx.description}
                     <span className="tag-chip kind-chip">{KIND_LABEL[tx.kind]}</span>
+                    {tx.installmentNo !== null && tx.installmentsTotal !== null && (
+                      <span className="tag-chip kind-chip">
+                        {tx.installmentNo}/{tx.installmentsTotal}
+                      </span>
+                    )}
                     {tx.tags.length > 0 && (
                       <span className="tags">
                         {tx.tags.map((tag) => (

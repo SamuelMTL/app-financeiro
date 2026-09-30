@@ -40,11 +40,24 @@ export interface Transaction {
   description: string;
   notes: string | null;
   tags: string[];
+  /** Presentes quando o lançamento é uma parcela (US-02) — mesmo grupo compartilha `installmentGroupId`. */
+  installmentGroupId: string | null;
+  installmentNo: number | null;
+  installmentsTotal: number | null;
 }
 
 export interface Tag {
   id: number;
   name: string;
+}
+
+/** Fatura de cartão (Fase 3) — nasce lazy, no primeiro lançamento do período. */
+export interface Statement {
+  id: number;
+  accountId: number;
+  month: string; // YYYY-MM
+  dueOn: string; // YYYY-MM-DD
+  paidByTransactionId: number | null;
 }
 
 /** Um "modelo" de recorrência (aluguel, assinatura, salário). Fase 2. */

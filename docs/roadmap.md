@@ -27,11 +27,19 @@ Histórias: US-02, US-03, US-05, US-06
 
 ## Fase 3 — Importação de fatura
 Histórias: US-10
-- [ ] Regra de criação da linha `statements` (fatura): nasce no primeiro lançamento do cartão que cai naquele período de fechamento (lazy), não precomputada — ver `docs/data-model.md`
-- [ ] CSV (leitor PicPay e Itaú Azul), conferência, duplicados, parcelas, categorias sugeridas
-- [ ] PDF (extração de texto + mesmo fluxo). Se o PDF de algum emissor for impraticável, documentar e manter só CSV para ele
+- [x] Regra de criação da linha `statements` (fatura): nasce no primeiro lançamento do cartão que cai naquele período de fechamento (lazy), não precomputada — ver `docs/data-model.md`
+- [x] CSV (leitor PicPay e Itaú Azul), conferência, duplicados, parcelas, categorias sugeridas
+- [ ] PDF — **não implementado nesta passada** (ver nota abaixo). Mantido só CSV, como o próprio roadmap já previa como saída aceitável.
 **Pronto quando:** importar duas vezes a mesma fatura não duplica nada e o total confere.
 **Por quê antes de visão geral/orçamento:** traz dados reais para o app o quanto antes — as fases seguintes (projeções, tetos, orçamento) passam a ser testadas e usadas com lançamentos reais, não só fictícios.
+
+**Verificado:** `npm run test` (138/138 — inclui normalização de descrição, hash de duplicado, detecção de parcela N/M, mapeamento de CSV, classificação Novo/Já lançado/Parcela/Revisar, e integração real contra a migration 0003: UNIQUE de fatura por mês, índice único parcial de `import_hash`), `npm run lint`, `npm run build` e `cargo build` todos passando. **Não verificado:** app rodando de verdade (mesma ressalva das fases anteriores); e — importante — **os nomes de coluna dos leitores "PicPay" e "Itaú Azul" são palpites**, sem arquivo de exportação real para conferir. A tela sempre deixa o mapeamento de colunas editável (dropdown com os cabeçalhos reais do arquivo), então funciona mesmo se o palpite errar, mas vale ajustar os presets assim que você tiver um export de verdade em mãos.
+
+**Decisões de escopo:**
+- PDF ficou fora desta passada — extração de texto de PDF é uma frente própria (layout varia muito por emissor) e o próprio roadmap já previa cair para "só CSV" se fosse impraticável; preferi não simular sem arquivo real para testar.
+- "Total da fatura" é conferido contra o que a pessoa digita (não existe uma fonte automática do total — normalmente vem do PDF/papel da fatura).
+- Import não usa transação SQL explícita (BEGIN/COMMIT) — em vez disso, cada linha é inserida de forma idempotente (índice único de `import_hash`), então repetir a confirmação após uma falha parcial não duplica nada, só pula o que já foi gravado. Mais simples que orquestrar uma transação Rust dedicada e cobre a garantia que a história pede.
+- Corrigido de passagem: parcelas criadas manualmente (Fase 2) tinham "(N/M)" embutido no texto da descrição, o que quebraria o casamento de grupo na importação. Agora fica como selo separado na tela (usando as colunas `installment_no`/`installments_total`, que já existiam).
 
 ## Fase 4 — Visão geral e projeções
 Histórias: US-09, US-15, US-16
