@@ -4,14 +4,16 @@ Marcar `[x]` ao concluir. Cada fase termina com testes passando e o app abrindo.
 
 ## Fase 1 — Base do app
 Histórias: US-01, US-04, US-07, US-08, US-20 (parcial)
-- [ ] Scaffold Tauri 2 + React + TS + Vite; SQLite com migrations; lint e testes configurados
-- [ ] Backup automático simples: copiar o `.sqlite` com timestamp para uma pasta de backups a cada abertura do app, mantendo os últimos N (não é feature completa, é rede de segurança mínima — dado financeiro real, sem nuvem)
-- [ ] Contas e cartões (CRUD), categorias com grupo
-- [ ] Lançamentos simples (gasto e renda): criar, editar, excluir, tags, observação
-- [ ] Tela Lançamentos com busca e filtros, painel de edição
-- [ ] Formulário "Novo lançamento" com atalho Ctrl/Cmd+N e "Salvar e novo"
-- [ ] Tema escuro com tokens, fontes empacotadas
+- [x] Scaffold Tauri 2 + React + TS + Vite; SQLite com migrations; lint e testes configurados
+- [x] Backup automático simples: copiar o `.sqlite` com timestamp para uma pasta de backups a cada abertura do app, mantendo os últimos N (não é feature completa, é rede de segurança mínima — dado financeiro real, sem nuvem)
+- [x] Contas e cartões (CRUD), categorias com grupo
+- [x] Lançamentos simples (gasto e renda): criar, editar, excluir, tags, observação
+- [x] Tela Lançamentos com busca e filtros, painel de edição (implementado como modal reaproveitado, não painel lateral como no mockup — ver nota abaixo)
+- [x] Formulário "Novo lançamento" com atalho Ctrl/Cmd+N e "Salvar e novo"
+- [x] Tema escuro com tokens, fontes empacotadas (subsets latin/latin-ext do IBM Plex via @fontsource)
 **Pronto quando:** dá para registrar, achar, corrigir e apagar gastos e rendas em várias contas/cartões, e o banco tem backup automático a cada abertura.
+
+**Verificado:** `npm run test` (47/47 — domínio + integração do banco com SQLite em memória contra a migration real), `npm run lint`, `npm run build` (tsc + vite) e `cargo build` (src-tauri) todos passando. **Não verificado:** rodar `npm run tauri dev` e clicar no app de verdade (fluxo completo criar/editar/excluir na UI, atalho Ctrl/Cmd+N na janela real, fidelidade visual pixel a pixel com `design/screens/*.html`) — a UI usa os tokens de cor/fonte corretos mas tem layout mais simples que os mockups; um passe de polimento visual fica pendente.
 
 ## Fase 2 — Parcelas, recorrências, transferências e estornos
 Histórias: US-02, US-03, US-05, US-06

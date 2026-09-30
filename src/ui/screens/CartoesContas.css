@@ -1,0 +1,80 @@
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.account-form,
+.category-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.errors {
+  color: var(--warn);
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+}
+
+.account-list,
+.category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-list li,
+.category-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+}
+.account-list li:hover,
+.category-list li:hover {
+  background: var(--selected);
+}
+
+.account-list li.archived {
+  opacity: 0.6;
+}
+
+.account-list-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px;
+}
+.link:hover {
+  color: var(--primary-hover);
+}

@@ -1,0 +1,30 @@
+/* Tokens de design (cores, espaçamento, tipografia) — fonte da verdade em design/tokens.css.
+   NÃO duplicar valores aqui; qualquer ajuste de paleta/tipografia acontece lá. */
+@import "../../../design/tokens.css";
+
+/* Fontes empacotadas localmente via @fontsource (sem CDN), pesos usados no design:
+   400/500 para texto corrido, 600 para títulos e números grandes (Sans);
+   400/500 para valores pequenos em tabelas e listas (Mono).
+   Só os subsets latin/latin-ext (cobrem pt-BR, incl. acentos) — os arquivos sem
+   prefixo de subset empacotam cirílico/grego/vietnamita etc. sem uso aqui. */
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-ext-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-ext-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-sans/latin-ext-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-ext-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+@import "@fontsource/ibm-plex-mono/latin-ext-500.css";
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}

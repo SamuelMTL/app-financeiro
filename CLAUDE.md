@@ -33,7 +33,14 @@ Idioma da interface e dos textos: **português do Brasil**. Moeda: **BRL**.
 - Atalho global **Ctrl/Cmd + N** abre "Novo lançamento" de qualquer tela.
 
 ## Comandos
-(Preencher após o scaffold da fase 1: dev, build, test, lint.)
+- `npm run dev` — app web (Vite) sem a shell do Tauri, útil para iterar na UI
+- `npm run tauri dev` — app desktop completo (Rust + React), com hot reload
+- `npm run build` — type-check (`tsc`) + build de produção do frontend
+- `npm run tauri build` — empacota o app desktop para distribuição
+- `npm run test` — testes do domínio (`src/**/*.test.ts`) e de integração do banco (`tests/db/*.test.ts`, SQLite em memória via `better-sqlite3`)
+- `npm run test:watch` — testes em modo watch
+- `npm run lint` — ESLint
+- `cargo check` (dentro de `src-tauri/`) — valida o lado Rust sem gerar binário
 
 ## Primeira tarefa
 Ler os docs e implementar a **Fase 1** do roadmap (base do app + lançamentos + contas/cartões + categorias), com testes.
