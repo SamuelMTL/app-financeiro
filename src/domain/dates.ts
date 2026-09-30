@@ -51,3 +51,34 @@ export function isValidMonth(value: string): boolean {
   const month = Number(value.slice(5, 7));
   return month >= 1 && month <= 12;
 }
+
+/** `"2025-10"` -> 31. Usa UTC só para aritmética de calendário, sem relação com fuso. */
+export function daysInMonth(month: string): number {
+  if (!isValidMonth(month)) {
+    throw new Error(`Mês inválido: "${month}"`);
+  }
+  const [year, mm] = month.split('-').map(Number);
+  return new Date(Date.UTC(year, mm, 0)).getUTCDate();
+}
+
+/** `"2025-10"` + 1 -> `"2025-11"`; aceita deltas negativos. */
+export function addMonths(month: string, delta: number): string {
+  if (!isValidMonth(month)) {
+    throw new Error(`Mês inválido: "${month}"`);
+  }
+  const [year, mm] = month.split('-').map(Number);
+  const total = year * 12 + (mm - 1) + delta;
+  const newYear = Math.floor(total / 12);
+  const newMonth = (total % 12) + 1;
+  return `${String(newYear).padStart(4, '0')}-${String(newMonth).padStart(2, '0')}`;
+}
+
+/**
+ * Monta uma data ISO para `day` dentro de `month`, ajustando para o último dia
+ * do mês quando `day` não existe nele (ex.: dia 31 em abril -> 30/04). Usada por
+ * parcelas e recorrências.
+ */
+export function dateInMonth(month: string, day: number): string {
+  const clampedDay = Math.min(day, daysInMonth(month));
+  return `${month}-${String(clampedDay).padStart(2, '0')}`;
+}

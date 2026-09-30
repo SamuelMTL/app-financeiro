@@ -1,5 +1,12 @@
 import type Database from '@tauri-apps/plugin-sql';
 import { validateTransaction, type TransactionInput } from '../domain/transactions/validate';
+import { previewInstallments } from '../domain/transactions/installments';
+import { validateTransfer, type TransferInput } from '../domain/transactions/transfers';
+import {
+  validateRefund,
+  validateRefundAmount,
+  type RefundInput,
+} from '../domain/transactions/refunds';
 import type { Transaction, TransactionKind } from '../domain/types';
 import { getDb } from './db';
 
@@ -183,4 +190,183 @@ export async function updateTransaction(id: number, input: TransactionInput): Pr
 export async function deleteTransaction(id: number): Promise<void> {
   const db = await getDb();
   await db.execute('DELETE FROM transactions WHERE id = ?', [id]);
+}
+
+// ---------------------------------------------------------------------------
+// Fase 2: parcelas, transferências, pagamento de fatura, estornos.
+// ---------------------------------------------------------------------------
+
+export interface InstallmentPurchaseInput {
+  accountId: number;
+  categoryId: number | null;
+  totalCents: number;
+  installmentsTotal: number;
+  purchasedOn: string;
+  description: string;
+  notes: string | null;
+  tags: string[];
+  /** Dia de fechamento do cartão (null se a conta não for cartão). */
+  closingDay: number | null;
+}
+
+/**
+ * Cria todas as parcelas de uma vez, cada uma na fatura certa (US-02). A soma
+ * bate ao centavo com `totalCents` (ver src/domain/transactions/installments.ts).
+ * `installmentsTotal <= 1` cai para um lançamento simples, sem grupo de parcela.
+ */
+export async function createInstallmentPurchase(
+  input: InstallmentPurchaseInput,
+): Promise<Transaction[]> {
+  if (input.installmentsTotal <= 1) {
+    const tx = await createTransaction({
+      kind: 'expense',
+      accountId: input.accountId,
+      categoryId: input.categoryId,
+      amountCents: input.totalCents,
+      purchasedOn: input.purchasedOn,
+      description: input.description,
+      notes: input.notes,
+      tags: input.tags,
+    });
+    return [tx];
+  }
+
+  const preview = previewInstallments(
+    input.purchasedOn,
+    input.totalCents,
+    input.installmentsTotal,
+    input.closingDay,
+  );
+
+  const db = await getDb();
+  const groupId = crypto.randomUUID();
+  const createdIds: number[] = [];
+
+  for (const item of preview) {
+    const result = await db.execute(
+      `INSERT INTO transactions
+         (kind, account_id, category_id, amount_cents, purchased_on, effective_on, description,
+          notes, installment_group_id, installment_no, installments_total)
+       VALUES ('expense', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        input.accountId,
+        input.categoryId,
+        item.amountCents,
+        input.purchasedOn,
+        item.effectiveOn,
+        `${input.description} (${item.installmentNo}/${input.installmentsTotal})`,
+        input.notes,
+        groupId,
+        item.installmentNo,
+        input.installmentsTotal,
+      ],
+    );
+    createdIds.push(result.lastInsertId as number);
+  }
+
+  if (input.tags.length > 0) {
+    for (const id of createdIds) {
+      await replaceTags(db, id, input.tags);
+    }
+  }
+
+  return Promise.all(createdIds.map((id) => getTransaction(id)));
+}
+
+async function findCategoryIdByName(db: Database, name: string): Promise<number | null> {
+  const rows = await db.select<{ id: number }[]>('SELECT id FROM categories WHERE name = ?', [name]);
+  return rows[0]?.id ?? null;
+}
+
+/** Transferência entre contas — não conta como gasto/renda (US-05). */
+export async function createTransfer(input: TransferInput): Promise<Transaction> {
+  const errors = validateTransfer(input);
+  if (errors.length > 0) throw new Error(errors.join(' '));
+
+  const db = await getDb();
+  const categoryId = await findCategoryIdByName(db, 'Transferência');
+  const result = await db.execute(
+    `INSERT INTO transactions (kind, account_id, dest_account_id, category_id, amount_cents, purchased_on, effective_on, description, notes)
+     VALUES ('transfer', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      input.accountId,
+      input.destAccountId,
+      categoryId,
+      input.amountCents,
+      input.purchasedOn,
+      input.purchasedOn,
+      input.description.trim(),
+      input.notes,
+    ],
+  );
+  return getTransaction(result.lastInsertId as number);
+}
+
+/** Pagamento de fatura: sai da conta, quita o cartão — não conta como gasto (US-05). */
+export async function createCardPayment(input: TransferInput): Promise<Transaction> {
+  const errors = validateTransfer(input);
+  if (errors.length > 0) throw new Error(errors.join(' '));
+
+  const db = await getDb();
+  const categoryId = await findCategoryIdByName(db, 'Fatura');
+  const result = await db.execute(
+    `INSERT INTO transactions (kind, account_id, dest_account_id, category_id, amount_cents, purchased_on, effective_on, description, notes)
+     VALUES ('card_payment', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      input.accountId,
+      input.destAccountId,
+      categoryId,
+      input.amountCents,
+      input.purchasedOn,
+      input.purchasedOn,
+      input.description.trim(),
+      input.notes,
+    ],
+  );
+  return getTransaction(result.lastInsertId as number);
+}
+
+/** Soma dos estornos já lançados para um gasto (US-06). */
+export async function getRefundedCents(originalTransactionId: number): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<{ total: number | null }[]>(
+    'SELECT SUM(amount_cents) AS total FROM transactions WHERE refund_of_id = ?',
+    [originalTransactionId],
+  );
+  return rows[0]?.total ?? 0;
+}
+
+/**
+ * Registra um estorno vinculado a um gasto (US-06). Herda categoria e conta/cartão
+ * do gasto original. Recusa se a soma dos estornos passar do valor original.
+ */
+export async function createRefund(input: RefundInput): Promise<Transaction> {
+  const fieldErrors = validateRefund(input);
+  if (fieldErrors.length > 0) throw new Error(fieldErrors.join(' '));
+
+  const original = await getTransaction(input.originalTransactionId);
+  if (original.kind !== 'expense') {
+    throw new Error('Só é possível estornar um gasto.');
+  }
+
+  const alreadyRefunded = await getRefundedCents(input.originalTransactionId);
+  const capErrors = validateRefundAmount(original.amountCents, alreadyRefunded, input.amountCents);
+  if (capErrors.length > 0) throw new Error(capErrors.join(' '));
+
+  const db = await getDb();
+  const result = await db.execute(
+    `INSERT INTO transactions (kind, account_id, category_id, amount_cents, purchased_on, effective_on, description, notes, refund_of_id)
+     VALUES ('refund', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      original.accountId,
+      original.categoryId,
+      input.amountCents,
+      input.purchasedOn,
+      input.purchasedOn,
+      `Estorno: ${original.description}`,
+      input.notes,
+      input.originalTransactionId,
+    ],
+  );
+  return getTransaction(result.lastInsertId as number);
 }

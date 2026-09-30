@@ -58,3 +58,26 @@
   justify-content: flex-end;
   gap: 12px;
 }
+
+.installment-preview {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--chip);
+  border-radius: var(--radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.installment-preview li {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+}
+
+.installment-preview .num {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}

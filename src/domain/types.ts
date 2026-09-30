@@ -46,3 +46,16 @@ export interface Tag {
   id: number;
   name: string;
 }
+
+/** Um "modelo" de recorrência (aluguel, assinatura, salário). Fase 2. */
+export interface Recurrence {
+  id: number;
+  kind: 'expense' | 'income';
+  description: string;
+  amountCents: number;
+  dayOfMonth: number; // 1-31, ajustado para o último dia em meses mais curtos
+  accountId: number;
+  categoryId: number | null;
+  startsOn: string; // YYYY-MM-DD
+  endsOn: string | null;
+}

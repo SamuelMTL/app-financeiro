@@ -8,12 +8,20 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 const DB_URL: &str = "sqlite:app_financeiro.db";
 
 fn migrations() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        description: "init: contas, categorias, lançamentos, tags",
-        sql: include_str!("../migrations/0001_init.sql"),
-        kind: MigrationKind::Up,
-    }]
+    vec![
+        Migration {
+            version: 1,
+            description: "init: contas, categorias, lançamentos, tags",
+            sql: include_str!("../migrations/0001_init.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "recorrências",
+            sql: include_str!("../migrations/0002_recurrences.sql"),
+            kind: MigrationKind::Up,
+        },
+    ]
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatCents, parseToCents } from '../../domain/money';
 import { todayISO } from '../../domain/dates';
 import type { SimpleTransactionKind, TransactionInput } from '../../domain/transactions/validate';
 import { validateTransaction } from '../../domain/transactions/validate';
+import { previewInstallments } from '../../domain/transactions/installments';
 import type { Account, Category, Transaction } from '../../domain/types';
+import type { InstallmentPurchaseInput } from '../../ipc/transactions';
 import { Modal } from './Modal';
 import { Field } from './Field';
 import { Button } from './Button';
@@ -35,6 +37,8 @@ interface TransactionFormModalProps {
   onClose: () => void;
   onSaved: (opts: { andNew: boolean }) => void;
   onSubmit: (input: TransactionInput) => Promise<void>;
+  /** Só usado ao criar um gasto com mais de 1 parcela (US-02). */
+  onSubmitInstallments?: (input: InstallmentPurchaseInput) => Promise<void>;
 }
 
 export function TransactionFormModal({
@@ -44,6 +48,7 @@ export function TransactionFormModal({
   onClose,
   onSaved,
   onSubmit,
+  onSubmitInstallments,
 }: TransactionFormModalProps) {
   const amountInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,8 +66,31 @@ export function TransactionFormModal({
   const [description, setDescription] = useState(transaction?.description ?? '');
   const [notes, setNotes] = useState(transaction?.notes ?? '');
   const [tagsText, setTagsText] = useState(transaction?.tags.join(', ') ?? '');
+  const [installmentsText, setInstallmentsText] = useState('1');
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Parcelamento só faz sentido criando um gasto novo (US-02) — editar uma
+  // parcela já lançada edita só aquela linha, não o grupo inteiro.
+  const canInstallment = !transaction && kind === 'expense' && Boolean(onSubmitInstallments);
+  const installmentsTotal = Math.max(1, Number(installmentsText) || 1);
+  const selectedAccount = accounts.find((a) => a.id === accountId) ?? null;
+
+  const installmentPreview = useMemo(() => {
+    if (!canInstallment || installmentsTotal <= 1) return null;
+    try {
+      const amountCents = parseToCents(amountText || '0');
+      if (amountCents <= 0) return null;
+      return previewInstallments(
+        purchasedOn,
+        amountCents,
+        installmentsTotal,
+        selectedAccount?.kind === 'credit_card' ? selectedAccount.closingDay : null,
+      );
+    } catch {
+      return null;
+    }
+  }, [canInstallment, installmentsTotal, amountText, purchasedOn, selectedAccount]);
 
   // Ctrl/Cmd+N abre com foco no valor (US-08).
   useEffect(() => {
@@ -107,7 +135,21 @@ export function TransactionFormModal({
     setSaving(true);
     setErrors([]);
     try {
-      await onSubmit(input);
+      if (canInstallment && installmentsTotal > 1 && onSubmitInstallments) {
+        await onSubmitInstallments({
+          accountId: input.accountId,
+          categoryId: input.categoryId,
+          totalCents: input.amountCents,
+          installmentsTotal,
+          purchasedOn: input.purchasedOn,
+          description: input.description,
+          notes: input.notes,
+          tags: input.tags,
+          closingDay: selectedAccount?.kind === 'credit_card' ? selectedAccount.closingDay : null,
+        });
+      } else {
+        await onSubmit(input);
+      }
       writeLastAccountId(input.accountId);
       onSaved({ andNew });
     } catch (err) {
@@ -193,6 +235,31 @@ export function TransactionFormModal({
             ))}
           </select>
         </Field>
+
+        {canInstallment && (
+          <Field label="Parcelas">
+            <input
+              type="number"
+              min={1}
+              max={48}
+              value={installmentsText}
+              onChange={(e) => setInstallmentsText(e.target.value)}
+            />
+          </Field>
+        )}
+
+        {installmentPreview && (
+          <ul className="installment-preview">
+            {installmentPreview.map((item) => (
+              <li key={item.installmentNo}>
+                <span>
+                  {item.installmentNo}/{installmentsTotal} · {item.effectiveOn}
+                </span>
+                <span className="num">{formatCents(item.amountCents)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <Field label="Categoria">
           <select

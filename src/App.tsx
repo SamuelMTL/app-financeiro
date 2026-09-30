@@ -7,7 +7,9 @@ import { TransactionFormModal } from './ui/components/TransactionFormModal';
 import type { Account, Category } from './domain/types';
 import { listAccounts } from './ipc/accounts';
 import { listCategories } from './ipc/categories';
-import { createTransaction } from './ipc/transactions';
+import { createInstallmentPurchase, createTransaction } from './ipc/transactions';
+import { generateOccurrencesForMonth } from './ipc/recurrences';
+import { currentMonth } from './domain/dates';
 import './ui/theme/theme.css';
 import './App.css';
 
@@ -40,6 +42,14 @@ function App() {
     listAccounts().then(setAccounts);
     listCategories().then(setCategories);
   }, [newTxOpen]); // reabrir o modal (depois de salvar) já recarrega as listas
+
+  // Gera os lançamentos do mês corrente para recorrências ativas, ao abrir o app
+  // (US-03, docs/business-rules.md) — idempotente, seguro de chamar toda vez.
+  useEffect(() => {
+    generateOccurrencesForMonth(currentMonth()).catch((err) => {
+      console.error('Falha ao gerar lançamentos recorrentes do mês:', err);
+    });
+  }, []);
 
   // Atalho global Ctrl/Cmd+N — "Novo lançamento" de qualquer tela (US-08).
   useEffect(() => {
@@ -75,6 +85,7 @@ function App() {
             }
           }}
           onSubmit={(input) => createTransaction(input).then(() => undefined)}
+          onSubmitInstallments={(input) => createInstallmentPurchase(input).then(() => undefined)}
         />
       )}
     </div>

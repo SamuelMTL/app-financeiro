@@ -17,11 +17,13 @@ Histórias: US-01, US-04, US-07, US-08, US-20 (parcial)
 
 ## Fase 2 — Parcelas, recorrências, transferências e estornos
 Histórias: US-02, US-03, US-05, US-06
-- [ ] Parcelamento com prévia e criação de todas as parcelas
-- [ ] Recorrências idempotentes
-- [ ] Transferência e pagamento de fatura (não contam como gasto)
-- [ ] Estorno vinculado
+- [x] Parcelamento com prévia e criação de todas as parcelas
+- [x] Recorrências idempotentes
+- [x] Transferência e pagamento de fatura (não contam como gasto)
+- [x] Estorno vinculado
 **Pronto quando:** a soma de parcelas fecha ao centavo, recorrências não duplicam e transferências não aparecem nos totais.
+
+**Verificado:** `npm run test` (98/98 — inclui casos de soma exata de parcelas com resto de centavos, mês de fatura antes/depois do fechamento, idempotência de recorrência via UNIQUE constraint real no SQLite em memória, teto de estorno), `npm run lint`, `npm run build` e `cargo build` todos passando. **Não verificado:** app rodando de verdade (mesma ressalva da Fase 1 — ambiente em segundo plano não mantém a janela do Tauri aberta). Geração de recorrências hoje só roda para o mês corrente ao abrir o app; "gerar ao navegar para um mês futuro" fica pendente até a Fase 4 (Visão geral), que introduz navegação por mês.
 
 ## Fase 3 — Importação de fatura
 Histórias: US-10

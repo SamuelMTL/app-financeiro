@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { formatCents, parseToCents } from '../../domain/money';
+import { todayISO } from '../../domain/dates';
 import { validateAccount, type AccountInput } from '../../domain/accounts/validate';
 import { validateCategory, type CategoryInput } from '../../domain/categories/validate';
-import type { Account, AccountKind, Category, CategoryGroup } from '../../domain/types';
+import { validateRecurrence, type RecurrenceInput } from '../../domain/recurrences/validate';
+import type { Account, AccountKind, Category, CategoryGroup, Recurrence } from '../../domain/types';
 import { archiveAccount, createAccount, listAccounts, updateAccount } from '../../ipc/accounts';
 import { createCategory, deleteCategory, listCategories } from '../../ipc/categories';
+import { createRecurrence, deleteRecurrence, listRecurrences } from '../../ipc/recurrences';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import './Lancamentos.css'; // .screen, .screen-header, .muted (compartilhados entre telas)
@@ -48,6 +51,34 @@ function buildAccountInput(form: typeof emptyAccountForm): AccountInput | null {
   }
 }
 
+const emptyRecurrenceForm = {
+  kind: 'expense' as 'expense' | 'income',
+  description: '',
+  amountText: '',
+  dayOfMonth: '5',
+  accountId: '' as number | '',
+  categoryId: '' as number | '',
+  startsOn: todayISO(),
+  endsOn: '',
+};
+
+function buildRecurrenceInput(form: typeof emptyRecurrenceForm): RecurrenceInput | null {
+  try {
+    return {
+      kind: form.kind,
+      description: form.description,
+      amountCents: parseToCents(form.amountText || '0'),
+      dayOfMonth: Number(form.dayOfMonth),
+      accountId: form.accountId === '' ? 0 : form.accountId,
+      categoryId: form.categoryId === '' ? null : form.categoryId,
+      startsOn: form.startsOn,
+      endsOn: form.endsOn === '' ? null : form.endsOn,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function CartoesContas() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -59,10 +90,19 @@ export function CartoesContas() {
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup>('want');
   const [categoryErrors, setCategoryErrors] = useState<string[]>([]);
 
+  const [recurrences, setRecurrences] = useState<Recurrence[]>([]);
+  const [recurrenceForm, setRecurrenceForm] = useState(emptyRecurrenceForm);
+  const [recurrenceErrors, setRecurrenceErrors] = useState<string[]>([]);
+
   async function reload() {
-    const [accs, cats] = await Promise.all([listAccounts({ includeArchived: true }), listCategories()]);
+    const [accs, cats, recs] = await Promise.all([
+      listAccounts({ includeArchived: true }),
+      listCategories(),
+      listRecurrences(),
+    ]);
     setAccounts(accs);
     setCategories(cats);
+    setRecurrences(recs);
   }
 
   useEffect(() => {
@@ -130,6 +170,30 @@ export function CartoesContas() {
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
     }
+  }
+
+  async function handleAddRecurrence() {
+    const input = buildRecurrenceInput(recurrenceForm);
+    if (!input) {
+      setRecurrenceErrors(['Valor inválido.']);
+      return;
+    }
+    const errors = validateRecurrence(input);
+    if (errors.length > 0) {
+      setRecurrenceErrors(errors);
+      return;
+    }
+    setRecurrenceErrors([]);
+    await createRecurrence(input);
+    setRecurrenceForm(emptyRecurrenceForm);
+    await reload();
+  }
+
+  async function handleDeleteRecurrence(id: number) {
+    const confirmed = window.confirm('Excluir esta recorrência? Os lançamentos já gerados por ela continuam no histórico.');
+    if (!confirmed) return;
+    await deleteRecurrence(id);
+    await reload();
   }
 
   return (
@@ -277,6 +341,129 @@ export function CartoesContas() {
                 {category.name} <span className="muted">· {CATEGORY_GROUP_LABEL[category.groupKind]}</span>
               </span>
               <button className="link" onClick={() => handleDeleteCategory(category.id)}>
+                Excluir
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="panel">
+        <h2>Recorrências</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Aluguel, assinaturas, salário — o lançamento do mês aparece sozinho em Lançamentos.
+        </p>
+        <div className="account-form">
+          <Field label="Tipo">
+            <select
+              value={recurrenceForm.kind}
+              onChange={(e) =>
+                setRecurrenceForm({ ...recurrenceForm, kind: e.target.value as 'expense' | 'income' })
+              }
+            >
+              <option value="expense">Gasto</option>
+              <option value="income">Renda</option>
+            </select>
+          </Field>
+          <Field label="Descrição">
+            <input
+              value={recurrenceForm.description}
+              onChange={(e) => setRecurrenceForm({ ...recurrenceForm, description: e.target.value })}
+            />
+          </Field>
+          <Field label="Valor (R$)">
+            <input
+              className="num"
+              value={recurrenceForm.amountText}
+              onChange={(e) => setRecurrenceForm({ ...recurrenceForm, amountText: e.target.value })}
+            />
+          </Field>
+          <Field label="Dia do mês">
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={recurrenceForm.dayOfMonth}
+              onChange={(e) => setRecurrenceForm({ ...recurrenceForm, dayOfMonth: e.target.value })}
+            />
+          </Field>
+          <Field label="Conta ou cartão">
+            <select
+              value={recurrenceForm.accountId}
+              onChange={(e) =>
+                setRecurrenceForm({
+                  ...recurrenceForm,
+                  accountId: e.target.value === '' ? '' : Number(e.target.value),
+                })
+              }
+            >
+              <option value="">Selecione…</option>
+              {accounts
+                .filter((a) => !a.archived)
+                .map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+            </select>
+          </Field>
+          <Field label="Categoria">
+            <select
+              value={recurrenceForm.categoryId}
+              onChange={(e) =>
+                setRecurrenceForm({
+                  ...recurrenceForm,
+                  categoryId: e.target.value === '' ? '' : Number(e.target.value),
+                })
+              }
+            >
+              <option value="">Sem categoria</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Início">
+            <input
+              type="date"
+              value={recurrenceForm.startsOn}
+              onChange={(e) => setRecurrenceForm({ ...recurrenceForm, startsOn: e.target.value })}
+            />
+          </Field>
+          <Field label="Fim (opcional)">
+            <input
+              type="date"
+              value={recurrenceForm.endsOn}
+              onChange={(e) => setRecurrenceForm({ ...recurrenceForm, endsOn: e.target.value })}
+            />
+          </Field>
+        </div>
+        {recurrenceErrors.length > 0 && (
+          <ul className="errors">
+            {recurrenceErrors.map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+        )}
+        <div className="panel-actions">
+          <Button variant="primary" onClick={handleAddRecurrence}>
+            Adicionar
+          </Button>
+        </div>
+        <ul className="category-list">
+          {recurrences.map((recurrence) => (
+            <li key={recurrence.id}>
+              <span>
+                {recurrence.description}{' '}
+                <span className="muted">
+                  · {formatCents(recurrence.amountCents)} · dia {recurrence.dayOfMonth} ·{' '}
+                  {accounts.find((a) => a.id === recurrence.accountId)?.name ?? '—'}
+                  {recurrence.endsOn && ` · até ${recurrence.endsOn}`}
+                </span>
+              </span>
+              <button className="link" onClick={() => handleDeleteRecurrence(recurrence.id)}>
                 Excluir
               </button>
             </li>
