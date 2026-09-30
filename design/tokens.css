@@ -1,0 +1,39 @@
+:root {
+  color-scheme: dark;
+  --bg: #14171A;
+  --surface: #1C2024;
+  --sidebar: #0C0E10;
+  --border: #2E343A;
+  --border-strong: #454C54;
+  --text: #ECEAE4;
+  --text-muted: #A3A9AE;
+  --chip: #262B30;
+  --track: #2C3238;
+  --selected: #232830;
+  --primary: #5CC4A0;
+  --primary-hover: #7FD6B5;
+  --primary-soft: #1F3A32;
+  --on-primary: #0E1A15;
+  --warn: #FF9C7E;
+  --warn-fill: #E8795A;
+  --warn-soft: #3B2721;
+  --neutral-fg: #C9CDD0;
+  --chart-neutral: #7E8790;
+  --sidebar-text: #C9D2CB;
+  --sidebar-text-muted: #A9B5AD;
+  --overlay: rgba(0, 0, 0, 0.66);
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-button: 10px;
+  --touch-min: 44px;
+  --sidebar-width: 248px;
+  --gap: 20px;
+}
+
+body { background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+.num { font-variant-numeric: tabular-nums; }
+.num-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }

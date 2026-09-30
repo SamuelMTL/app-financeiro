@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+
+# Tauri (Rust)
+src-tauri/target/
+
+# Dados locais (nunca versionar dados reais do usuário)
+*.sqlite
+*.sqlite3
+*.db
+backups/
+
+# Ambiente
+.env
+.env.local
+
+# Pacote de handoff (duplica docs/ e design/ já versionados)
+app-financeiro-handoff.zip
