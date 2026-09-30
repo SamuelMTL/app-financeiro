@@ -8,6 +8,7 @@ import {
   type RefundInput,
 } from '../domain/transactions/refunds';
 import type { Transaction, TransactionKind } from '../domain/types';
+import { assertDatesOpen } from './closing';
 import { getDb } from './db';
 import { getOrCreateStatement, resolveExpenseEffective } from './statements';
 
@@ -145,6 +146,7 @@ export async function getTransaction(id: number): Promise<Transaction> {
 export async function createTransaction(input: TransactionInput): Promise<Transaction> {
   const errors = validateTransaction(input);
   if (errors.length > 0) throw new Error(errors.join(' '));
+  await assertDatesOpen(input.purchasedOn);
 
   const db = await getDb();
   // Gasto num cartão: effective_on vira o vencimento da fatura do mês certo
@@ -178,6 +180,7 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
 export async function updateTransaction(id: number, input: TransactionInput): Promise<Transaction> {
   const errors = validateTransaction(input);
   if (errors.length > 0) throw new Error(errors.join(' '));
+  await assertDatesOpen((await getTransaction(id)).purchasedOn, input.purchasedOn);
 
   const db = await getDb();
   const { statementId, effectiveOn } =
@@ -208,6 +211,7 @@ export async function updateTransaction(id: number, input: TransactionInput): Pr
 }
 
 export async function deleteTransaction(id: number): Promise<void> {
+  await assertDatesOpen((await getTransaction(id)).purchasedOn);
   const db = await getDb();
   await db.execute('DELETE FROM transactions WHERE id = ?', [id]);
 }
@@ -237,6 +241,7 @@ export interface InstallmentPurchaseInput {
 export async function createInstallmentPurchase(
   input: InstallmentPurchaseInput,
 ): Promise<Transaction[]> {
+  await assertDatesOpen(input.purchasedOn);
   if (input.installmentsTotal <= 1) {
     const tx = await createTransaction({
       kind: 'expense',
@@ -317,6 +322,7 @@ async function findCategoryIdByName(db: Database, name: string): Promise<number 
 export async function createTransfer(input: TransferInput): Promise<Transaction> {
   const errors = validateTransfer(input);
   if (errors.length > 0) throw new Error(errors.join(' '));
+  await assertDatesOpen(input.purchasedOn);
 
   const db = await getDb();
   const categoryId = await findCategoryIdByName(db, 'Transferência');
@@ -341,6 +347,7 @@ export async function createTransfer(input: TransferInput): Promise<Transaction>
 export async function createCardPayment(input: TransferInput): Promise<Transaction> {
   const errors = validateTransfer(input);
   if (errors.length > 0) throw new Error(errors.join(' '));
+  await assertDatesOpen(input.purchasedOn);
 
   const db = await getDb();
   const categoryId = await findCategoryIdByName(db, 'Fatura');
@@ -384,6 +391,7 @@ export async function createRefund(input: RefundInput): Promise<Transaction> {
     throw new Error('Só é possível estornar um gasto.');
   }
 
+  await assertDatesOpen(input.purchasedOn);
   const alreadyRefunded = await getRefundedCents(input.originalTransactionId);
   const capErrors = validateRefundAmount(original.amountCents, alreadyRefunded, input.amountCents);
   if (capErrors.length > 0) throw new Error(capErrors.join(' '));

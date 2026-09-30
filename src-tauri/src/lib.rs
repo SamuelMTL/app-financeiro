@@ -33,6 +33,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0004_planning.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "fechamento de mês: closed_months e triggers de bloqueio",
+            sql: include_str!("../migrations/0005_closed_months.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -41,6 +47,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(DB_URL, migrations())

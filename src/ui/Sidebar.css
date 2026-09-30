@@ -74,3 +74,10 @@
   color: var(--primary);
   font-weight: 500;
 }
+
+.sidebar-closed {
+  margin: auto 0 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--sidebar-text-muted);
+}

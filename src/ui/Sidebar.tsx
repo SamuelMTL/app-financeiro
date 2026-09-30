@@ -1,3 +1,7 @@
+import { useEffect, useState } from 'react';
+import { isClosed } from '../domain/closing/closing';
+import { listClosedMonths } from '../ipc/closing';
+import { monthLong } from './format';
 import './Sidebar.css';
 
 export type ScreenId =
@@ -26,6 +30,14 @@ interface SidebarProps {
 }
 
 export function Sidebar({ active, onNavigate, onNewTransaction }: SidebarProps) {
+  // Último mês fechado (mais recente ainda fechado), como nas telas de referência.
+  const [lastClosed, setLastClosed] = useState<string | null>(null);
+  useEffect(() => {
+    listClosedMonths()
+      .then((list) => setLastClosed(list.filter((c) => isClosed(list, c.month)).map((c) => c.month).sort().pop() ?? null))
+      .catch(() => setLastClosed(null));
+  }, [active]);
+
   return (
     <nav className="sidebar">
       <div className="sidebar-title">Caderno</div>
@@ -47,6 +59,8 @@ export function Sidebar({ active, onNavigate, onNewTransaction }: SidebarProps) 
           </li>
         ))}
       </ul>
+
+      {lastClosed && <p className="sidebar-closed">{monthLong(lastClosed).split(' de ')[0]} fechado</p>}
     </nav>
   );
 }

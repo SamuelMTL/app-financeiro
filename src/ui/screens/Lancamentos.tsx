@@ -28,6 +28,7 @@ const KIND_LABEL: Record<TransactionKind, string> = {
 export function Lancamentos() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [search, setSearch] = useState('');
   const [accountFilter, setAccountFilter] = useState<number | ''>('');
@@ -96,8 +97,13 @@ export function Lancamentos() {
   async function handleDelete(transaction: Transaction) {
     const confirmed = window.confirm(`Excluir "${transaction.description}"?`);
     if (!confirmed) return;
-    await deleteTransaction(transaction.id);
-    await reload();
+    try {
+      setActionError(null);
+      await deleteTransaction(transaction.id);
+      await reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err)); // ex.: mês fechado
+    }
   }
 
   return (
@@ -108,6 +114,8 @@ export function Lancamentos() {
           Transferência / pagamento de fatura
         </Button>
       </header>
+
+      {actionError && <p className="error" role="alert">{actionError}</p>}
 
       <div className="filters">
         <input

@@ -80,11 +80,25 @@ Histórias: US-11, US-12, US-13, US-14, US-17
 
 ## Fase 6 — Análise, fechamento e exportação
 Histórias: US-18, US-19, US-21, US-22, US-23
-- [ ] Análise (comparativo mensal, maiores gastos, categorias que mais cresceram)
-- [ ] Fechar e reabrir mês com bloqueio no banco + resumo mensal
-- [ ] Exportação CSV e Excel
-- [ ] Smoke tests de integração via Tauri (não só domínio isolado): criar lançamento, fechar mês e tentar editar (deve bloquear), importar a mesma fatura duas vezes (não deve duplicar)
+- [x] Análise (comparativo mensal, maiores gastos, categorias que mais cresceram)
+- [x] Fechar e reabrir mês com bloqueio no banco + resumo mensal
+- [x] Exportação CSV e Excel
+- [x] Smoke tests de integração (criar lançamento, fechar mês e tentar editar → bloqueia; importar a mesma fatura duas vezes → não duplica) — ver ressalva abaixo sobre "via Tauri"
 **Pronto quando:** mês fechado recusa qualquer alteração, inclusive por caminhos alternativos.
+
+**Verificado:** `npm run test` (199/199), `tsc`, `eslint`, `npm run build` e `cargo check`.
+- `src/domain/closing/closing.test.ts` reproduz os exemplos do design: saídas de setembro R$ 7.976,80 × agosto R$ 6.901,80 (+ R$ 1.075,00, +15,6%), ranking de categorias que mais cresceram (Compras +55,6% … Transporte −22,4%), resumo (entrou R$ 10.300,00, saiu R$ 7.976,80, aportes R$ 1.500,00, sobrou R$ 823,20) e os desvios (Restaurantes 145%, Compras 110%, aporte 73% da meta).
+- `tests/integration/smoke.test.ts` roda as funções reais de `src/ipc/*` contra o SQLite com **todas** as migrations. Cobre: criar/editar/excluir/mudar tags/mover data para dentro ou para fora de mês fechado; SQL direto (sem passar pela camada ipc) também é barrado pelos triggers; orçamento, parcelas, recorrências e importação em mês fechado; reabrir e fechar de novo; importar a mesma fatura duas vezes. O teste falha sem a migration 0005 (conferido).
+- `tests/integration/export.test.ts`: o `.xlsx` gerado abre como zip válido, com uma aba por tabela e valores em reais.
+
+**Ressalva importante:** os "smoke tests via Tauri" **não sobem a janela do Tauri**. O `tauri-driver` (WebDriver do Tauri) não suporta macOS, então o teste troca só o transporte (`@tauri-apps/plugin-sql` → adaptador sobre `better-sqlite3`) e exercita o mesmo código de `src/ipc` e o mesmo SQL das migrations. **Não verificado:** app rodando, o visual das telas novas, os diálogos de salvar/abrir arquivo e a gravação do arquivo de exportação dentro do Tauri (permissões `dialog`/`fs`).
+
+**Decisões de escopo:**
+- Bloqueio em duas camadas: a camada ipc confere antes (`assertDatesOpen`, mensagem legível e sem efeito colateral, p.ex. não cria fatura à toa) e os triggers da migration `0005_closed_months.sql` são a garantia final. Triggers cobrem `transactions` (INSERT/UPDATE/DELETE, olhando mês antigo e novo no UPDATE), `transaction_tags`, `budgets`, `payment_limits` e também `goals` e `distribution_plan` (além do que o data-model pedia, porque alterariam o resumo do mês fechado).
+- Recorrências não são geradas para mês fechado; importação falha antes de gravar (em vez de contar linha bloqueada como "duplicada").
+- Só dá para fechar mês que já começou (não futuro). A checklist do fechamento é manual e obrigatória (um item por cartão). Reabrir pede confirmação e guarda a data na mesma linha de `closed_months`.
+- "Saiu" e a Análise **não incluem** o grupo Investimento: aporte aparece à parte; `sobrou = entrou − saiu − aportes` (bate com as telas de referência).
+- Exportação só lê. Excel: uma aba por tabela (dinheiro em reais, convertido só na borda do arquivo). CSV: UTF-8 com BOM, `;`, decimal com vírgula; com mais de uma tabela, um arquivo por tabela numa pasta escolhida.
 
 ## Depois (fora do escopo inicial)
 Versão de celular para registro rápido, backup automático mais completo (ex.: para nuvem própria do usuário, restauração pela UI — a Fase 1 já cobre uma cópia local simples a cada abertura), atualização de valores por índices.

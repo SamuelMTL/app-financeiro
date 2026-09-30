@@ -1,6 +1,8 @@
 import { isRecurrenceActiveInMonth, occurrenceDate } from '../domain/recurrences/occurrences';
 import { validateRecurrence, type RecurrenceInput } from '../domain/recurrences/validate';
 import type { Recurrence } from '../domain/types';
+import { listClosedMonths } from './closing';
+import { isClosed } from '../domain/closing/closing';
 import { getDb } from './db';
 
 interface RecurrenceRow {
@@ -108,6 +110,9 @@ export async function deleteRecurrence(id: number): Promise<void> {
  * Devolve quantos lançamentos novos foram criados.
  */
 export async function generateOccurrencesForMonth(month: string): Promise<number> {
+  // Mês fechado nunca é alterado — inclusive pela geração automática de recorrências.
+  if (isClosed(await listClosedMonths(), month)) return 0;
+
   const db = await getDb();
   const recurrences = await listRecurrences();
   let created = 0;

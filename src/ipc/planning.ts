@@ -6,6 +6,7 @@ import { paymentMethodOf, type PaymentMethod } from '../domain/planning/spending
 import { addMonths } from '../domain/dates';
 import { buildPlanningView, METHOD_LABEL, type LimitRow, type PlanningView } from '../domain/planning/view';
 import { listCategories } from './categories';
+import { assertMonthOpen } from './closing';
 import { getDb } from './db';
 import { loadOverviewData } from './overview';
 import { getSpendOptions } from './settings';
@@ -27,6 +28,7 @@ export async function listBudgets(month: string): Promise<BudgetRow[]> {
 
 export async function saveBudget(row: BudgetRow): Promise<void> {
   if (!Number.isInteger(row.plannedCents) || row.plannedCents < 0) throw new Error('Valor planejado inválido.');
+  await assertMonthOpen(row.month);
   const db = await getDb();
   await db.execute(
     `INSERT INTO budgets (month, category_id, planned_cents, alert_80, alert_100) VALUES (?, ?, ?, ?, ?)
@@ -37,6 +39,7 @@ export async function saveBudget(row: BudgetRow): Promise<void> {
 }
 
 export async function deleteBudget(month: string, categoryId: number): Promise<void> {
+  await assertMonthOpen(month);
   const db = await getDb();
   await db.execute('DELETE FROM budgets WHERE month = ? AND category_id = ?', [month, categoryId]);
 }
@@ -46,6 +49,7 @@ export async function copyPreviousMonth(
   month: string,
   confirmed: boolean,
 ): Promise<{ kind: 'needs-confirmation'; existingCount: number } | { kind: 'copied'; count: number }> {
+  await assertMonthOpen(month);
   const from = addMonths(month, -1);
   const [fromRows, existing] = await Promise.all([listBudgets(from), listBudgets(month)]);
   if (fromRows.length === 0) throw new Error('O mês anterior não tem orçamento para copiar.');
@@ -74,6 +78,7 @@ export async function listLimits(month: string): Promise<LimitRow[]> {
 
 export async function saveLimit(row: LimitRow): Promise<void> {
   if (!Number.isInteger(row.limitCents) || row.limitCents < 0) throw new Error('Valor do teto inválido.');
+  await assertMonthOpen(row.month);
   const db = await getDb();
   await db.execute(
     `INSERT INTO payment_limits (month, method, limit_cents, alert_80, alert_100) VALUES (?, ?, ?, ?, ?)
@@ -84,6 +89,7 @@ export async function saveLimit(row: LimitRow): Promise<void> {
 }
 
 export async function deleteLimit(month: string, method: PaymentMethod): Promise<void> {
+  await assertMonthOpen(month);
   const db = await getDb();
   await db.execute('DELETE FROM payment_limits WHERE month = ? AND method = ?', [month, method]);
 }
@@ -98,6 +104,7 @@ export async function getGoal(month: string): Promise<GoalInput | null> {
 }
 
 export async function saveGoal(month: string, goal: GoalInput | null): Promise<void> {
+  await assertMonthOpen(month);
   const db = await getDb();
   if (goal === null) {
     await db.execute('DELETE FROM goals WHERE month = ?', [month]);
@@ -122,6 +129,7 @@ export async function getDistributionPlan(month: string): Promise<DistributionPl
 }
 
 export async function saveDistributionPlan(month: string, plan: DistributionPlan): Promise<void> {
+  await assertMonthOpen(month);
   const errors = validateDistribution(plan);
   if (errors.length > 0) throw new Error(errors.join(' '));
   const db = await getDb();

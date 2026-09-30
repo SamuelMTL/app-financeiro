@@ -4,8 +4,9 @@ import { VisaoGeral } from './ui/screens/VisaoGeral';
 import { Lancamentos } from './ui/screens/Lancamentos';
 import { CartoesContas } from './ui/screens/CartoesContas';
 import { ImportarFatura } from './ui/screens/ImportarFatura';
+import { Analise } from './ui/screens/Analise';
+import { Fechamento } from './ui/screens/Fechamento';
 import { Planejamento } from './ui/screens/Planejamento';
-import { PlaceholderScreen } from './ui/screens/PlaceholderScreen';
 import { TransactionFormModal } from './ui/components/TransactionFormModal';
 import type { Account, Category } from './domain/types';
 import { listAccounts } from './ipc/accounts';
@@ -31,9 +32,9 @@ function Screen({ id }: { id: ScreenId }) {
     case 'planejamento':
       return <Planejamento />;
     case 'analise':
-      return <PlaceholderScreen title="Análise" phase="Fase 6" />;
+      return <Analise />;
     case 'fechamento':
-      return <PlaceholderScreen title="Fechamento" phase="Fase 6" />;
+      return <Fechamento />;
   }
 }
 

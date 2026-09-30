@@ -6,6 +6,7 @@ import {
   type ExistingInstallmentGroup,
 } from '../domain/import/reconcile';
 import type { RawImportRow } from '../domain/import/csv';
+import { assertDatesOpen } from './closing';
 import { getDb } from './db';
 import { getOrCreateStatement } from './statements';
 
@@ -87,6 +88,9 @@ export async function confirmImport(
   month: string,
   rows: ConfirmImportRow[],
 ): Promise<{ createdCount: number; skippedCount: number }> {
+  // Uma linha em mês fechado derrubaria a importação no meio (o trigger barra) e,
+  // pior, seria contada como "duplicado pulado". Falha antes, com a razão clara.
+  await assertDatesOpen(...rows.map((r) => r.purchasedOn));
   const db = await getDb();
   const statement = await getOrCreateStatement(accountId, month);
 
