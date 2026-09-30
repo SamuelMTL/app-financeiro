@@ -1,0 +1,26 @@
+.summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summary-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 28px;
+}
+
+.summary-list .mono {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.commit-headline {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}

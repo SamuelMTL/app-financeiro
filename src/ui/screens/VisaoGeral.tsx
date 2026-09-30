@@ -1,0 +1,79 @@
+import { daysInMonth } from '../../domain/dates';
+import { formatCents } from '../../domain/money';
+import { Button } from '../components/Button';
+import { dateLong, dayMonth } from '../format';
+import { useOverview } from '../useOverview';
+import './Lancamentos.css'; // .screen, .screen-header, .muted (compartilhados entre telas)
+import './CartoesContas.css'; // .panel
+import './VisaoGeral.css';
+
+/**
+ * Visão geral (US-15, US-16): saldo previsto até o fim do mês, quanto dá para
+ * gastar por dia e as faturas a vencer. Orçamento, tetos e alertas chegam na Fase 5.
+ */
+export function VisaoGeral() {
+  const { overview, accounts, today, error, reload } = useOverview();
+
+  if (error) return <div className="screen"><p className="error">Não foi possível carregar: {error}</p></div>;
+  if (!overview) return <div className="screen"><p className="muted">Carregando…</p></div>;
+
+  const { forecast } = overview;
+  const accountName = (id: number) => accounts.find((a) => a.id === id)?.name ?? 'Cartão';
+  const lastDay = daysInMonth(today.slice(0, 7));
+  const monthEnd = `${today.slice(0, 7)}-${String(lastDay).padStart(2, '0')}`;
+  const isLastDay = Number(today.slice(8, 10)) === lastDay;
+
+  return (
+    <div className="screen">
+      <header className="screen-header">
+        <div>
+          <h1>Visão geral</h1>
+          <p className="muted">Posição em {dateLong(today)}</p>
+        </div>
+        <Button variant="secondary" onClick={reload}>Atualizar</Button>
+      </header>
+
+      <section className="panel forecast-hero" aria-labelledby="forecast-title">
+        <h2 id="forecast-title">Saldo previsto em {dayMonth(monthEnd)}</h2>
+        <p className={`hero-number ${forecast.forecastCents < 0 ? 'negative' : ''}`}>
+          {formatCents(forecast.forecastCents)}
+          {forecast.forecastCents < 0 && <span className="hero-flag"> · abaixo de zero</span>}
+        </p>
+        <dl className="forecast-lines">
+          <div><dt>Saldo atual nas contas</dt><dd>{formatCents(forecast.currentBalanceCents)}</dd></div>
+          {forecast.remainingIncomeCents > 0 && (
+            <div><dt>Rendas a receber</dt><dd>+ {formatCents(forecast.remainingIncomeCents)}</dd></div>
+          )}
+          <div><dt>Gastos em conta a vencer (recorrentes e agendados)</dt><dd>− {formatCents(forecast.remainingOutflowsCents)}</dd></div>
+          <div><dt>Faturas a vencer</dt><dd>− {formatCents(forecast.statementsDueCents)}</dd></div>
+        </dl>
+      </section>
+
+      <section className="panel" aria-labelledby="perday-title">
+        <h2 id="perday-title">Você pode gastar por dia</h2>
+        <p className="hero-number">{formatCents(forecast.perDayCents)}</p>
+        <p className="muted">
+          Saldo previsto dividido por {forecast.remainingDays} {forecast.remainingDays === 1 ? 'dia' : 'dias'}{' '}
+          {isLastDay ? '(hoje é o último dia do mês).' : 'restantes, de amanhã até o fim do mês.'}
+          {forecast.forecastCents <= 0 && ' Como o saldo previsto não sobra, o valor por dia é zero.'}
+        </p>
+      </section>
+
+      <section className="panel" aria-labelledby="due-title">
+        <h2 id="due-title">Faturas a vencer</h2>
+        {overview.statementsDueThisMonth.length === 0 ? (
+          <p className="muted">Nenhuma fatura em aberto vence neste mês.</p>
+        ) : (
+          <ul className="due-list">
+            {overview.statementsDueThisMonth.map((s) => (
+              <li key={s.statementId}>
+                <span>{accountName(s.accountId)} · vence {dayMonth(s.dueOn)}{s.dueOn < today && ' (vencida)'}</span>
+                <span className="mono">{formatCents(s.openCents)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}

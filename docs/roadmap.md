@@ -43,10 +43,21 @@ Histórias: US-10
 
 ## Fase 4 — Visão geral e projeções
 Histórias: US-09, US-15, US-16
-- [ ] Faturas por cartão, comprometido futuro (gráfico) e parcelamentos em andamento
-- [ ] Saldo previsto e "posso gastar por dia"
-- [ ] Tela Visão geral e tela Cartões e contas
+- [x] Faturas por cartão, comprometido futuro (gráfico) e parcelamentos em andamento
+- [x] Saldo previsto e "posso gastar por dia"
+- [x] Tela Visão geral e tela Cartões e contas (resumo no topo; o cadastro continua abaixo)
 **Pronto quando:** os números batem com os exemplos de `docs/business-rules.md`.
+
+**Verificado:** `npm run test` (154/154; `src/domain/overview/overview.test.ts` reproduz o exemplo do design: saldo atual R$ 6.240,50 − recorrentes R$ 289,70 − faturas R$ 2.968,75 = **R$ 2.982,05**, 19 dias → **R$ 156,95/dia**; parcela 3/10 de R$ 214,90 → restante R$ 1.504,30), `tsc`, `eslint` e `npm run build`. **Não verificado:** app rodando de verdade (Tauri) e o visual das telas novas.
+
+**Decisões de escopo:**
+- Lógica em `src/domain/overview/` (funções puras); `src/ipc/overview.ts` só lê os dados; `buildOverview` junta tudo para as telas.
+- Saldo por conta é por caixa (`effective_on` ≤ hoje). Pagamento de fatura só sai da conta; transferência move saldo.
+- "Gastos em conta a vencer" = qualquer gasto em conta (não cartão) com data futura até o fim do mês, recorrente ou agendado. Gasto no cartão só pesa via fatura (sem contar duas vezes).
+- Pagamentos de fatura quitam as faturas mais antigas primeiro (o pagamento não guarda a qual fatura se refere); uma fatura com `paid_by_transaction_id` conta como paga.
+- Comprometido futuro = em aberto nas faturas de meses depois do corrente.
+- `creditUsedCents(..., { incluirParcelasAntigasNoTeto })` já existe parametrizada e testada nos dois valores; ainda não é usada por nenhuma tela (teto é Fase 5).
+- Fora desta fase (Fase 5): orçamento por categoria, tetos, alertas e os cartões Entradas/Saídas/Aportes do mockup.
 
 ## Fase 5 — Orçamento, tetos, metas e alertas
 Histórias: US-11, US-12, US-13, US-14, US-17

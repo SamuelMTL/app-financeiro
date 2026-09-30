@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Sidebar, type ScreenId } from './ui/Sidebar';
+import { VisaoGeral } from './ui/screens/VisaoGeral';
 import { Lancamentos } from './ui/screens/Lancamentos';
 import { CartoesContas } from './ui/screens/CartoesContas';
 import { ImportarFatura } from './ui/screens/ImportarFatura';
@@ -17,7 +18,7 @@ import './App.css';
 function Screen({ id }: { id: ScreenId }) {
   switch (id) {
     case 'visao-geral':
-      return <PlaceholderScreen title="Visão geral" phase="Fase 4" />;
+      return <VisaoGeral />;
     case 'lancamentos':
       return <Lancamentos />;
     case 'cartoes':

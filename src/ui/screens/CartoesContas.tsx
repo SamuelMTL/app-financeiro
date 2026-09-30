@@ -10,6 +10,7 @@ import { createCategory, deleteCategory, listCategories } from '../../ipc/catego
 import { createRecurrence, deleteRecurrence, listRecurrences } from '../../ipc/recurrences';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
+import { CartoesResumo } from './CartoesResumo';
 import './Lancamentos.css'; // .screen, .screen-header, .muted (compartilhados entre telas)
 import './CartoesContas.css';
 
@@ -201,6 +202,8 @@ export function CartoesContas() {
       <header className="screen-header">
         <h1>Cartões e contas</h1>
       </header>
+
+      <CartoesResumo refreshKey={accounts} />
 
       <section className="panel">
         <h2>{editingAccountId ? 'Editar conta/cartão' : 'Nova conta/cartão'}</h2>
