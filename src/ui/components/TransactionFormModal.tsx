@@ -3,6 +3,8 @@ import { formatCents, parseToCents } from '../../domain/money';
 import { todayISO } from '../../domain/dates';
 import type { SimpleTransactionKind, TransactionInput } from '../../domain/transactions/validate';
 import { validateTransaction } from '../../domain/transactions/validate';
+import { ceilingWarning } from '../../domain/planning/ceilings';
+import { splitInstallments } from '../../domain/transactions/installments';
 import { previewInstallments } from '../../domain/transactions/installments';
 import type { Account, Category, Transaction } from '../../domain/types';
 import type { InstallmentPurchaseInput } from '../../ipc/transactions';
@@ -39,6 +41,8 @@ interface TransactionFormModalProps {
   onSubmit: (input: TransactionInput) => Promise<void>;
   /** Só usado ao criar um gasto com mais de 1 parcela (US-02). */
   onSubmitInstallments?: (input: InstallmentPurchaseInput) => Promise<void>;
+  /** Teto e uso do mês para a forma de pagamento da conta (US-17); `null` = sem teto definido. */
+  getCeiling?: (accountId: number, purchasedOn: string) => Promise<{ limitCents: number; usedCents: number; label: string } | null>;
 }
 
 export function TransactionFormModal({
@@ -49,6 +53,7 @@ export function TransactionFormModal({
   onSaved,
   onSubmit,
   onSubmitInstallments,
+  getCeiling,
 }: TransactionFormModalProps) {
   const amountInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,6 +96,36 @@ export function TransactionFormModal({
       return null;
     }
   }, [canInstallment, installmentsTotal, amountText, purchasedOn, selectedAccount]);
+
+  // Aviso de teto (US-17): só ao criar um gasto; avisa, não bloqueia.
+  const [ceiling, setCeiling] = useState<{ limitCents: number; usedCents: number; label: string } | null>(null);
+  useEffect(() => {
+    if (!getCeiling || transaction || kind !== 'expense' || accountId === '') {
+      setCeiling(null);
+      return;
+    }
+    let cancelled = false;
+    getCeiling(accountId, purchasedOn)
+      .then((info) => !cancelled && setCeiling(info))
+      .catch(() => !cancelled && setCeiling(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [getCeiling, transaction, kind, accountId, purchasedOn]);
+
+  const ceilingAlert = useMemo(() => {
+    if (!ceiling) return null;
+    try {
+      const total = parseToCents(amountText || '0');
+      if (total <= 0) return null;
+      // Parcelado: só a parcela do mês da compra pesa no teto (docs/business-rules.md).
+      const counted = canInstallment && installmentsTotal > 1 ? splitInstallments(total, installmentsTotal)[0] : total;
+      const warning = ceilingWarning({ usedCents: ceiling.usedCents, limitCents: ceiling.limitCents, amountCents: counted });
+      return warning.exceeds ? warning : null;
+    } catch {
+      return null;
+    }
+  }, [ceiling, amountText, canInstallment, installmentsTotal]);
 
   // Ctrl/Cmd+N abre com foco no valor (US-08).
   useEffect(() => {
@@ -259,6 +294,16 @@ export function TransactionFormModal({
               </li>
             ))}
           </ul>
+        )}
+
+        {ceilingAlert && ceiling && (
+          <p role="alert" className="ceiling-warning">
+            ⚠ Esta compra passa do {ceiling.label.toLowerCase()} em {formatCents(ceilingAlert.overByCents)}.
+            {ceilingAlert.remainingBeforeCents > 0
+              ? ` Ainda restavam ${formatCents(ceilingAlert.remainingBeforeCents)}.`
+              : ' O teto já estava estourado.'}{' '}
+            Você ainda pode salvar.
+          </p>
         )}
 
         <Field label="Categoria">

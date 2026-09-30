@@ -1,0 +1,7 @@
+.usage { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+.usage-track { position: relative; height: 8px; border-radius: 4px; background: var(--track); }
+.usage-fill { height: 100%; border-radius: 4px; background: var(--primary); }
+.usage-fill.near, .usage-fill.over { background: var(--warn-fill); }
+.usage-mark { position: absolute; left: 80%; top: -2px; bottom: -2px; width: 2px; background: var(--border-strong); }
+.usage-text { font-size: 12px; color: var(--text-muted); }
+.usage-text.near, .usage-text.over { color: var(--warn); }

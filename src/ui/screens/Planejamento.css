@@ -1,0 +1,20 @@
+.month-nav { display: flex; align-items: center; gap: 12px; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.confirm-row { display: flex; align-items: center; gap: 8px; color: var(--warn); flex-wrap: wrap; }
+.plan-table td { vertical-align: middle; }
+.plan-input {
+  min-height: var(--touch-min); width: 130px; padding: 0 12px; text-align: right;
+  border-radius: var(--radius-control); border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: 14px;
+}
+.alert-checks { display: flex; gap: 12px; }
+.alert-checks label, .option-row { display: inline-flex; align-items: center; gap: 6px; min-height: var(--touch-min); font-size: 14px; }
+.add-row, .plan-edit { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.add-row select, .plan-edit select {
+  min-height: var(--touch-min); padding: 0 12px; border-radius: var(--radius-control);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 14px;
+}
+.plan-edit label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.limit-row { display: grid; grid-template-columns: 1.4fr 150px 1fr auto; gap: 16px; align-items: center; }
+.limit-name { display: flex; flex-direction: column; gap: 2px; }
+.dist-row { display: flex; justify-content: space-between; gap: 16px; }

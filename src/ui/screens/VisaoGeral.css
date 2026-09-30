@@ -47,3 +47,7 @@
   flex-direction: column;
   gap: 10px;
 }
+
+.limit-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.limit-card { display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-control); }
+.hero-small { font-size: 26px; font-weight: 600; }

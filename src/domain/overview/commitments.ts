@@ -1,5 +1,6 @@
 import { addMonths } from '../dates';
 import type { Account, Statement } from '../types';
+import { DEFAULT_SPEND_OPTIONS, monthlySpend, spentByMethod, type SpendOptions } from '../planning/spending';
 import type { StatementSummary } from './statements';
 import type { TxLite } from './types';
 
@@ -87,48 +88,20 @@ export function ongoingInstallments(
   return result.sort((a, b) => b.remainingCents - a.remainingCents);
 }
 
-export interface CreditUsageOptions {
-  /**
-   * Decisão em aberto (docs/business-rules.md): parcelas de compras antigas que
-   * caem na fatura do mês entram no teto de crédito? Padrão: não.
-   */
-  incluirParcelasAntigasNoTeto: boolean;
-}
+export type CreditUsageOptions = SpendOptions;
 
 /**
  * Quanto do teto de crédito foi usado em `month` (por data da compra), já
- * descontados estornos. Compra parcelada conta só a parcela do mês da compra
- * (a 1ª); as parcelas seguintes de compras antigas só entram quando
- * `incluirParcelasAntigasNoTeto` está ligado.
+ * descontados estornos. Regra de parcelas em `monthlySpend` (planning/spending.ts).
  */
 export function creditUsedCents(
   txs: TxLite[],
   accounts: Account[],
   statements: Statement[],
   month: string,
-  options: CreditUsageOptions = { incluirParcelasAntigasNoTeto: false },
+  options: CreditUsageOptions = DEFAULT_SPEND_OPTIONS,
 ): number {
-  const cardIds = new Set(accounts.filter((a) => a.kind === 'credit_card').map((a) => a.id));
-  const monthByStatement = new Map(statements.map((s) => [s.id, s.month]));
-  let used = 0;
-  for (const tx of txs) {
-    if (!cardIds.has(tx.accountId)) continue;
-    if (tx.kind === 'refund') {
-      if (tx.purchasedOn.slice(0, 7) === month) used -= tx.amountCents;
-      continue;
-    }
-    if (tx.kind !== 'expense') continue;
-    const isOldInstallment = tx.installmentNo !== null && tx.installmentNo > 1;
-    if (!isOldInstallment) {
-      if (tx.purchasedOn.slice(0, 7) === month) used += tx.amountCents;
-    } else if (options.incluirParcelasAntigasNoTeto) {
-      const statementMonth =
-        (tx.statementId !== null ? monthByStatement.get(tx.statementId) : undefined) ??
-        tx.effectiveOn.slice(0, 7);
-      if (statementMonth === month && tx.purchasedOn.slice(0, 7) !== month) used += tx.amountCents;
-    }
-  }
-  return Math.max(0, used);
+  return spentByMethod(monthlySpend(txs, statements, month, options), accounts).credit;
 }
 
 /** Meses consecutivos a partir de `from`, para montar o eixo do gráfico. */

@@ -81,3 +81,12 @@
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
+
+.ceiling-warning {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 14px;
+}

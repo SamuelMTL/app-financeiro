@@ -61,11 +61,22 @@ Histórias: US-09, US-15, US-16
 
 ## Fase 5 — Orçamento, tetos, metas e alertas
 Histórias: US-11, US-12, US-13, US-14, US-17
-- [ ] Orçamento por categoria e cópia do mês anterior
-- [ ] Tetos por forma de pagamento (crédito e débito/Pix/dinheiro) + aviso no formulário
-- [ ] Distribuição 50/30/20 e meta de investimento
-- [ ] Alertas 80%/100% (uma vez por mês) e notificação do sistema
+- [x] Orçamento por categoria e cópia do mês anterior
+- [x] Tetos por forma de pagamento (crédito e débito/Pix/dinheiro) + aviso no formulário
+- [x] Distribuição 50/30/20 e meta de investimento
+- [x] Alertas 80%/100% (uma vez por mês) e notificação do sistema
 **Pronto quando:** estourar um teto ou categoria dispara o alerta exatamente uma vez.
+
+**Verificado:** `npm run test` (178/178; `src/domain/planning/planning.test.ts` reproduz os números do design — Moradia 89,7% "perto", Restaurantes 107,1% "acima", crédito 90,8% com R$ 55,20 restantes, distribuição 37,1/20,7/13,6% da renda de R$ 11.000, meta R$ 1.500 de R$ 2.200; `tests/db/planning.test.ts` confere os CHECKs da migration 0004 e que `INSERT OR IGNORE` em `alert_events` grava uma vez só), `tsc`, `eslint`, `npm run build` e `cargo check`. **Não verificado:** app rodando de verdade, o visual das telas e a notificação do sistema no macOS (pede permissão na primeira vez).
+
+**Decisões de escopo:**
+- Lógica em `src/domain/planning/` (funções puras); `src/ipc/planning.ts` e `src/ipc/alerts.ts` só leem/gravam. Migration `0004_planning.sql` (orçamento, tetos, meta, distribuição, `alert_events`).
+- Regra de parcelas nos tetos/orçamento em um lugar só (`monthlySpend`): compra parcelada conta a parcela do mês da compra; parcelas de compras antigas só entram com a opção `incluirParcelasAntigasNoTeto` (checkbox em Planejamento, guardada em `localStorage`; padrão desligado). `creditUsedCents` (Fase 4) passou a usar essa mesma função.
+- Alerta: cada limiar dispara uma vez por mês por item. Pular de 50% para 105% mostra só o aviso de 100%, mas registra os dois limiares (o de 80% não volta). O disparo só acontece se o `INSERT OR IGNORE` em `alert_events` realmente inseriu a linha. A conferência roda ao abrir o app, ao trocar de tela e depois de lançar.
+- Aviso no formulário só aparece ao **criar** gasto, não bloqueia salvar; em compra parcelada pesa só a 1ª parcela.
+- Renda do mês para 50/30/20 e meta em %: rendas lançadas (por data da compra); se nenhuma, soma das recorrências de renda ativas.
+- Copiar mês anterior copia orçamento (planejado + alertas) e tetos; o grupo vem da própria categoria. Não copia meta nem distribuição.
+- Bloqueio de mês fechado (triggers) é da Fase 6; orçamento/tetos ainda são editáveis em qualquer mês.
 
 ## Fase 6 — Análise, fechamento e exportação
 Histórias: US-18, US-19, US-21, US-22, US-23

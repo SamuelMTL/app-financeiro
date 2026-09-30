@@ -27,6 +27,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0003_statements.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "planejamento: orçamento, tetos, metas, distribuição e alertas",
+            sql: include_str!("../migrations/0004_planning.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -34,6 +40,7 @@ fn migrations() -> Vec<Migration> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(DB_URL, migrations())

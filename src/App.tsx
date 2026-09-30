@@ -4,12 +4,15 @@ import { VisaoGeral } from './ui/screens/VisaoGeral';
 import { Lancamentos } from './ui/screens/Lancamentos';
 import { CartoesContas } from './ui/screens/CartoesContas';
 import { ImportarFatura } from './ui/screens/ImportarFatura';
+import { Planejamento } from './ui/screens/Planejamento';
 import { PlaceholderScreen } from './ui/screens/PlaceholderScreen';
 import { TransactionFormModal } from './ui/components/TransactionFormModal';
 import type { Account, Category } from './domain/types';
 import { listAccounts } from './ipc/accounts';
 import { listCategories } from './ipc/categories';
 import { createInstallmentPurchase, createTransaction } from './ipc/transactions';
+import { checkAlerts } from './ipc/alerts';
+import { getCeilingInfo } from './ipc/planning';
 import { generateOccurrencesForMonth } from './ipc/recurrences';
 import { currentMonth } from './domain/dates';
 import './ui/theme/theme.css';
@@ -26,7 +29,7 @@ function Screen({ id }: { id: ScreenId }) {
     case 'importar':
       return <ImportarFatura />;
     case 'planejamento':
-      return <PlaceholderScreen title="Planejamento" phase="Fase 5" />;
+      return <Planejamento />;
     case 'analise':
       return <PlaceholderScreen title="Análise" phase="Fase 6" />;
     case 'fechamento':
@@ -52,6 +55,13 @@ function App() {
       console.error('Falha ao gerar lançamentos recorrentes do mês:', err);
     });
   }, []);
+
+  // Alertas de orçamento/teto (US-11, US-17): confere ao abrir, ao trocar de tela e
+  // depois de lançar. Cada limiar dispara uma vez por mês (registrado no banco).
+  useEffect(() => {
+    if (newTxOpen) return;
+    checkAlerts(currentMonth()).catch((err) => console.error('Falha ao conferir alertas:', err));
+  }, [activeScreen, newTxOpen]);
 
   // Atalho global Ctrl/Cmd+N — "Novo lançamento" de qualquer tela (US-08).
   useEffect(() => {
@@ -88,6 +98,7 @@ function App() {
           }}
           onSubmit={(input) => createTransaction(input).then(() => undefined)}
           onSubmitInstallments={(input) => createInstallmentPurchase(input).then(() => undefined)}
+          getCeiling={getCeilingInfo}
         />
       )}
     </div>
