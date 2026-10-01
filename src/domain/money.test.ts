@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCents, parseToCents, sumCents } from './money';
+import { formatCents, parseSignedToCents, parseToCents, sumCents } from './money';
 
 describe('formatCents', () => {
   it('formata centavos como BRL', () => {
@@ -51,6 +51,25 @@ describe('parseToCents', () => {
 
   it('rejeita valor não numérico', () => {
     expect(() => parseToCents('abc')).toThrow();
+  });
+});
+
+describe('parseSignedToCents', () => {
+  it('aceita valor negativo', () => {
+    expect(parseSignedToCents('-150,50')).toBe(-15050);
+    expect(parseSignedToCents('- 1.234,00')).toBe(-123400);
+  });
+
+  it('mantém o comportamento para valores positivos', () => {
+    expect(parseSignedToCents('150,50')).toBe(15050);
+  });
+
+  it('não devolve -0 para zero negativo', () => {
+    expect(Object.is(parseSignedToCents('-0'), 0)).toBe(true);
+  });
+
+  it('rejeita valor não numérico', () => {
+    expect(() => parseSignedToCents('-abc')).toThrow();
   });
 });
 

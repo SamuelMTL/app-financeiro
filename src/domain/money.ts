@@ -62,6 +62,17 @@ export function parseToCents(input: string): number {
   return cents;
 }
 
+/**
+ * Como `parseToCents`, mas aceita sinal negativo ("-150,00", "- 150"). Para campos em que
+ * o valor pode legitimamente ser negativo, como o saldo inicial de uma conta no vermelho.
+ */
+export function parseSignedToCents(input: string): number {
+  const trimmed = input.trim();
+  const negative = /^[-−–]/.test(trimmed);
+  const cents = parseToCents(negative ? trimmed.slice(1) : trimmed);
+  return negative && cents !== 0 ? -cents : cents;
+}
+
 /** Soma uma lista de valores em centavos — só para deixar explícito que é sempre inteiro. */
 export function sumCents(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);

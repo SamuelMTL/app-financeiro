@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatCents, parseToCents } from '../../domain/money';
+import { formatCents, parseSignedToCents, parseToCents } from '../../domain/money';
 import { todayISO } from '../../domain/dates';
 import { validateAccount, type AccountInput } from '../../domain/accounts/validate';
 import { validateCategory, type CategoryInput } from '../../domain/categories/validate';
@@ -42,7 +42,7 @@ function buildAccountInput(form: typeof emptyAccountForm): AccountInput | null {
     return {
       name: form.name,
       kind: form.kind,
-      openingBalanceCents: parseToCents(form.openingBalanceText || '0'),
+      openingBalanceCents: parseSignedToCents(form.openingBalanceText || '0'),
       creditLimitCents: form.kind === 'credit_card' ? parseToCents(form.creditLimitText || '0') : null,
       closingDay: form.kind === 'credit_card' && form.closingDay ? Number(form.closingDay) : null,
       dueDay: form.kind === 'credit_card' && form.dueDay ? Number(form.dueDay) : null,
@@ -226,7 +226,7 @@ export function CartoesContas() {
               <option value="credit_card">Cartão de crédito</option>
             </select>
           </Field>
-          <Field label="Saldo inicial (R$)">
+          <Field label="Saldo inicial (R$) — use - para saldo negativo">
             <input
               className="num"
               value={accountForm.openingBalanceText}
