@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatCents, parseToCents } from '../../domain/money';
 import { todayISO } from '../../domain/dates';
 import { validateAccount, type AccountInput } from '../../domain/accounts/validate';
@@ -92,6 +92,7 @@ export function CartoesContas() {
   const [categoryErrors, setCategoryErrors] = useState<string[]>([]);
 
   const [recurrences, setRecurrences] = useState<Recurrence[]>([]);
+  const accountFormRef = useRef<HTMLElement>(null);
   const [recurrenceForm, setRecurrenceForm] = useState(emptyRecurrenceForm);
   const [recurrenceErrors, setRecurrenceErrors] = useState<string[]>([]);
 
@@ -120,6 +121,7 @@ export function CartoesContas() {
       closingDay: account.closingDay?.toString() ?? '',
       dueDay: account.dueDay?.toString() ?? '',
     });
+    accountFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async function handleSaveAccount() {
@@ -205,7 +207,7 @@ export function CartoesContas() {
 
       <CartoesResumo refreshKey={accounts} />
 
-      <section className="panel">
+      <section className="panel" ref={accountFormRef}>
         <h2>{editingAccountId ? 'Editar conta/cartão' : 'Nova conta/cartão'}</h2>
         <div className="account-form">
           <Field label="Nome">
@@ -294,11 +296,14 @@ export function CartoesContas() {
               <div>
                 <strong>{account.name}</strong>
                 <span className="muted"> · {ACCOUNT_KIND_LABEL[account.kind]}</span>
+                {account.kind !== 'credit_card' && (
+                  <span className="muted"> · saldo inicial {formatCents(account.openingBalanceCents)}</span>
+                )}
                 {account.archived && <span className="muted"> · arquivada</span>}
               </div>
               <div className="account-list-actions">
                 <button className="link" onClick={() => startEditAccount(account)}>
-                  Editar
+                  {account.kind !== 'credit_card' ? 'Editar / corrigir saldo inicial' : 'Editar'}
                 </button>
                 {!account.archived && (
                   <button className="link" onClick={() => handleArchiveAccount(account.id)}>
